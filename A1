@@ -1,0 +1,32 @@
+FirstStep
+1.
+real	0m20.390s
+user	0m20.217s
+sys	0m0.172s
+
+2.
+real	0m19.967s
+user	0m19.815s
+sys	0m0.152s
+
+3.
+real	0m20.035s
+user	0m19.846s
+sys	0m0.188s
+
+
+SecondStep
+1.
+real    0m11.170s
+user    0m20.411s
+sys     0m0.256s
+
+2.
+real    0m11.286s
+user    0m20.572s
+sys     0m0.200s
+
+3.
+real    0m11.228s
+user    0m20.607s
+sys     0m0.196s

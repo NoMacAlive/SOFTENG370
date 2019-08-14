@@ -1,0 +1,16 @@
+First Step
+1.
+	real	0m21.388s
+	user	0m21.227s
+	sys	0m0.161s
+2.
+	real	0m21.476s
+	user	0m21.327s
+	sys	0m0.148s
+3.
+	real	0m21.417s
+	user	0m21.264s
+	sys	0m0.141s
+
+Second Step
+
