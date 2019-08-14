@@ -1,2 +1,2 @@
-cc -pthread a1.1.c -o output
-time ./output 100000000
+cc -pthread a1.3.c -o output
+time ./output 10

@@ -16,6 +16,7 @@
 #include <sys/resource.h>
 #include <stdbool.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 #define SIZE    2
 
@@ -24,7 +25,7 @@ struct block {
     int *first;
 };
 
-//how to create a thread
+        //how to create a thread
         //pthread_t thread1_id;
         //pthread_attr_t thread1_attr;
         //pthread_attr_init(&thread1_attr);
@@ -54,17 +55,25 @@ void merge(struct block *left, struct block *right) {
 }
 
 /* Merge sort the data. */
-void merge_sort(struct block *my_data) {
-    // print_block_data(my_data);
-    if (my_data->size > 1) {
+void* merge_sort(void *my_data) {
+    struct block *data = my_data;
+    // print_block_data(data);
+    if (data->size > 1) {
         struct block left_block;
         struct block right_block;
-        left_block.size = my_data->size / 2;
-        left_block.first = my_data->first;
-        right_block.size = left_block.size + (my_data->size % 2);
-        right_block.first = my_data->first + left_block.size;
-        merge_sort(&left_block);
-        merge_sort(&right_block);
+        left_block.size = data->size / 2;
+        left_block.first = data->first;
+        right_block.size = left_block.size + (data->size % 2);
+        right_block.first = data->first + left_block.size;
+        pthread_t thread1_id;
+        pthread_t thread2_id;
+        // pthread_attr_t thread1_attr;
+        // pthread_attr_init(&thread1_attr);
+        // pthread_attr_setstacksize(&thread1_attr, NULL);
+        pthread_create(&thread1_id, NULL, merge_sort,(void *)&left_block);
+        pthread_create(&thread2_id, NULL, merge_sort,(void *)&right_block);
+        pthread_join(thread1_id,NULL);
+        pthread_join(thread2_id,NULL);
         merge(&left_block, &right_block);
     }
 }
@@ -75,12 +84,21 @@ bool is_sorted(int data[], int size) {
     for (int i = 0; i < size - 1; i++) {
         if (data[i] > data[i + 1])
             sorted = false;
+            printf("i = %d, i+1 = %d\n",data[i],data[i+1]);
     }
     return sorted;
 }
 
 int main(int argc, char *argv[]) {
 	long size;
+    struct rlimit rl;
+
+	 /* Obtain the current limits. */
+	 getrlimit (RLIMIT_STACK, &rl);
+	 /* Set the stack limit */
+	 rl.rlim_cur = 1000000000;
+	 setrlimit (RLIMIT_STACK, &rl);
+
 
 	if (argc < 2) {
 		size = SIZE;
@@ -93,6 +111,7 @@ int main(int argc, char *argv[]) {
     start_block.first = data;
     for (int i = 0; i < size; i++) {
         data[i] = rand();
+        printf("data list were %d\n",data[i]);
     }
     printf("starting---\n");
     merge_sort(&start_block);
