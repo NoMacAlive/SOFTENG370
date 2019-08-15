@@ -84,7 +84,7 @@ bool is_sorted(int data[], int size) {
     for (int i = 0; i < size - 1; i++) {
         if (data[i] > data[i + 1])
             sorted = false;
-            printf("i = %d, i+1 = %d\n",data[i],data[i+1]);
+            // printf("i = %d, i+1 = %d\n",data[i],data[i+1]);
     }
     return sorted;
 }
@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
 	 /* Obtain the current limits. */
 	 getrlimit (RLIMIT_STACK, &rl);
 	 /* Set the stack limit */
-	 rl.rlim_cur = 1000000000;
+	 rl.rlim_cur = 900000000000;
 	 setrlimit (RLIMIT_STACK, &rl);
 
 
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
     start_block.first = data;
     for (int i = 0; i < size; i++) {
         data[i] = rand();
-        printf("data list were %d\n",data[i]);
+        // printf("data list were %d\n",data[i]);
     }
     printf("starting---\n");
     merge_sort(&start_block);
