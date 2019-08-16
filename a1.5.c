@@ -25,8 +25,8 @@ int numOfCoreConfiged = 8;
 int numOfThreadsRunning = 0;
 pthread_t threads[20];
 
-pthread_mutex_t mut;
-pthread_mutex_t mut1;
+pthread_spinlock_t spinlock;
+
 
 struct block {
     int size;
@@ -62,27 +62,26 @@ void merge(struct block *left, struct block *right) {
     memmove(left->first, combined, (left->size + right->size) * sizeof(int));
 }
 
-void threadCreated(){
-    pthread_mutex_lock(&mut);
-        numOfThreadsRunning++;
-    pthread_mutex_unlock(&mut);
-}
+// void threadCreated(){
+//     pthread_mutex_lock(&mut);
+//         numOfThreadsRunning++;
+//     pthread_mutex_unlock(&mut);
+// }
 
-void threadDestroyed(){
-    pthread_mutex_lock(&mut);
-        numOfThreadsRunning--;
-    pthread_mutex_unlock(&mut);
-}
+// void threadDestroyed(){
+//     pthread_mutex_lock(&mut);
+//         numOfThreadsRunning--;
+//     pthread_mutex_unlock(&mut);
+// }
 
 
 
 /* Merge sort the data. */
-void* merge_sort_thread(void *my_data) {
+void* merge_sort(void *my_data) {
     struct block *data = my_data;
     pthread_t pth1;
     pthread_t pth2;
     pthread_attr_t attr;
-    int s1,s2 = 1;
     // print_block_data(data)
     if (data->size > 1) {
         struct block left_block;
@@ -97,50 +96,41 @@ void* merge_sort_thread(void *my_data) {
             pthread_attr_t attr;
             pthread_attr_init(&attr);
             pthread_attr_setstacksize(&attr, 256 * 1024 * 1024);
-            pthread_mutex_lock(&mut);
+            pthread_spin_lock(&spinlock);
             numOfThreadsRunning++;
-            pthread_mutex_unlock(&mut);
+            pthread_spin_unlock(&spinlock);
             // printf("new thread created\n");
-            s1 = pthread_create(&pth1,&attr, merge_sort,(void *)&left_block);
+            pthread_create(&pth1, &attr, merge_sort,(void *)&left_block);
             pthread_join(pth1,NULL);
-            pthread_mutex_lock(&mut);
+            // printf("new thread destroyed\n");
             numOfThreadsRunning--;
-            pthread_mutex_unlock(&mut);
-            // pthread_mutex_unlock(&mut);
+            // pthread_spin_unlock(&spinlock);
         }else{
             merge_sort(&left_block);
         }
         if(numOfThreadsRunning<numOfCoreConfiged ){
-            // pthread_mutex_lock(&mut);
+            // pthread_spin_lock(&spinlock);
             pthread_attr_t attr;
             pthread_attr_init(&attr);
             pthread_attr_setstacksize(&attr, 256 * 1024 * 1024);
-            pthread_mutex_lock(&mut);
+            pthread_spin_lock(&spinlock);
             numOfThreadsRunning++;
-            pthread_mutex_unlock(&mut);
+            pthread_spin_unlock(&spinlock);
             // printf("new thread created\n");
-            s2 = pthread_create(&pth2, &attr, merge_sort,(void *)&right_block);
+            pthread_create(&pth2, &attr, merge_sort,(void *)&right_block);
             pthread_join(pth2,NULL);
-            pthread_mutex_lock(&mut);
+            // printf("new thread destroyed\n");
+            pthread_spin_lock(&spinlock);
             numOfThreadsRunning--;
-            pthread_mutex_unlock(&mut);
-            // pthread_mutex_unlock(&mut);
+            pthread_spin_unlock(&spinlock);
+            // pthread_spin_unlock(&spinlock);
         }else{
             merge_sort(&right_block);
         }
         // threadDestroyed();
-        // if(s1 == 0){
-        //     pthread_join(pth1,NULL);
-        //     pthread_mutex_lock(&mut);
-        //     numOfThreadsRunning--;
-        //     pthread_mutex_unlock(&mut);
-        // }
-        // if(s2 == 0){       
-        //     pthread_join(pth2,NULL);
-        //     pthread_mutex_lock(&mut);
-        //     numOfThreadsRunning--;
-        //     pthread_mutex_unlock(&mut);
-        // }
+        
+        // threadDestroyed();        
+    
         merge(&left_block, &right_block);
     }
 }
@@ -159,24 +149,6 @@ bool is_sorted(int data[], int size) {
 }
 
 
-void merge_sort(TYPE *array, int start, int finish) {
-    thread_data_t data;
-    data.array = array;
-    data.left = start;
-    data.right = finish;
-    // Initialize the shared data.
-    number_of_threads = 0;
-    pthread_mutex_init(&lock_number_of_threads, NULL);
-    data.tid = 0;
-    // Create and initialize the thread
-    pthread_t thread;
-    int rc = pthread_create(&thread,
-                            NULL,
-                            merge_sort_thread,
-                            &data);
-    pthread_join(thread, NULL);
-    return;
-}
 
 int main(int argc, char *argv[]) {
 	long size;
@@ -197,7 +169,8 @@ int main(int argc, char *argv[]) {
      printf("The number of cores configed is : %ld\n",numOfCores);
     
     //initialise the mutex lock using default value.
-    pthread_mutex_init(&mut, NULL);
+    // pthread_mutex_init(&mut, NULL);
+    pthread_spin_init(&spinlock, 0);
     // pthread_mutex_init(&mut1, NULL);
     
 

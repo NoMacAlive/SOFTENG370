@@ -67,7 +67,7 @@ void merge_sort(struct block *my_data) {
 
 
 /* Merge sort the data. */
-void* merge_sort_thread(void *my_data) {
+void* merge_sort_thread(void* my_data) {
     // print_block_data(my_data);
     //printf("Finishing first created.\n");
     struct block *data = my_data;
@@ -89,7 +89,7 @@ void merge_sort_Two_threaded(struct block *my_data){
     if (my_data->size > 1) {
         struct block left_block;
         struct block right_block;
-        int s;
+        int s1,s2;
         left_block.size = my_data->size / 2;
         left_block.first = my_data->first;
         right_block.size = left_block.size + (my_data->size % 2);
@@ -99,23 +99,25 @@ void merge_sort_Two_threaded(struct block *my_data){
         pthread_t thread1_id;
         pthread_attr_t thread1_attr;
         pthread_attr_init(&thread1_attr);
-        pthread_attr_setstacksize(&thread1_attr, 5000000000);
-        s=pthread_create(&thread1_id, &thread1_attr, merge_sort_thread,(void *)&right_block);
+        pthread_attr_setstacksize(&thread1_attr, 256*1024*1024);
+        s1=pthread_create(&thread1_id, &thread1_attr, merge_sort_thread,(void *)&left_block);
         //printf("thread 1 is %d",s);
         //second thread
         pthread_t thread2_id;
         pthread_attr_t thread2_attr;
         pthread_attr_init(&thread2_attr);
-        pthread_attr_setstacksize(&thread2_attr, 5000000000);
-        s=pthread_create(&thread2_id, &thread2_attr, merge_sort_thread,(void *)&left_block);
+        pthread_attr_setstacksize(&thread2_attr, 256*1024*1024);
+        s2=pthread_create(&thread2_id, &thread2_attr, merge_sort_thread,(void *)&right_block);
         //printf("thread 2 is %d",s);
 
-
+        if(s1==0){
         pthread_join(thread1_id, NULL);
         printf("Finishing first thread.\n");
+        }
+        if(s2==0){
         pthread_join(thread2_id, NULL);
         printf("Finishing second thread.\n");
-
+        }
         merge(&left_block, &right_block);
     }
 }
@@ -142,7 +144,7 @@ int main(int argc, char *argv[]) {
 	 /* Obtain the current limits. */
 	 getrlimit (RLIMIT_STACK, &rl);
 	 /* Set the stack limit */
-	 rl.rlim_cur = 10000000000;
+	 rl.rlim_cur = 1024*1024*1024;
 	 setrlimit (RLIMIT_STACK, &rl);
 
 
