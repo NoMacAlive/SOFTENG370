@@ -1,3 +1,3 @@
-cc a1.7.c -o output
-time ./output 10000
+cc a1.7.c -o output -pthread
+time ./output 1000
 # 000000

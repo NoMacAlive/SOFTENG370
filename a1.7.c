@@ -18,8 +18,10 @@
 #include <sys/resource.h>
 #include <stdbool.h>
 #include <sys/time.h>
-
-
+#include <sys/shm.h>
+#include <sys/ipc.h>
+#include <sys/mman.h>
+#include <pthread.h>
 #define SIZE    2
 
 struct block {
@@ -28,6 +30,10 @@ struct block {
 };
 
 int numOfCoreConfiged;
+static int* numOfRunningProcess;
+pthread_mutex_t * pmutex = NULL;
+pthread_mutexattr_t attrmutex;//mutex lock inter-processes
+
 
 // void print_block_data(struct block *blk) {
 //     printf("size: %d address: %p\n", blk->size, blk->first);
@@ -91,11 +97,11 @@ bool is_sorted(int data[], int size) {
         if (data[i] > data[i + 1])
             sorted = false;
             // printf("i = %d\n",data[i]);
+
     }
     return sorted;
 }
-void merge_sort_Two_processes(struct block *my_data){
-    int numOfRunningProcess=1;
+void merge_sort_multiprocess(struct block *my_data){
     int numOfRunningProcessFromChild = 0;
     if (my_data->size > 1) {
         struct block left_block;
@@ -107,75 +113,66 @@ void merge_sort_Two_processes(struct block *my_data){
         right_block.first = my_data->first + left_block.size;
         
         int pipefd[2];
-        pid_t cpid;
+        pid_t l_id;
+        pid_t r_id;
         int pipeNum[2];
         pipe(pipefd);
         pipe(pipeNum);
-
-        if(1||read(pipeNum[0], &numOfRunningProcessFromChild, sizeof(numOfRunningProcessFromChild))){
-        }
+        // printf("main numberOfRunningProcess is : %d\n",*numOfRunningProcess);
+            r_id = fork();
+            // printf("fork run\n");
+            pthread_mutex_lock(pmutex);
+            *numOfRunningProcess += 1 ;
+            pthread_mutex_unlock(pmutex);
         
-        numOfRunningProcess=numOfRunningProcess +numOfRunningProcessFromChild;
+            if (r_id == -1) {
+                perror("fork");
+                exit(EXIT_FAILURE);
+            } 
+            if (r_id == 0) {//child process
 
-        printf("numberOfRunningProcess is : %d\n",numOfRunningProcess);
-        if(numOfRunningProcess < numOfCoreConfiged){
-            cpid = fork();
-            printf("fork run\n");
-            
-           if (cpid == -1) {
-               perror("fork");
-               exit(EXIT_FAILURE);
-           }
-                if (cpid == 0) {
-                    numOfRunningProcess = numOfRunningProcess+1;
-                //    /* Child writes merge sorted half to pipe */
-                    write(pipeNum[1], &numOfRunningProcess, sizeof(numOfRunningProcess));
-                    int buf[right_block.size];
-                    merge_sort_Two_processes(&right_block);
-                    for (int i = 0; i<right_block.size;i++){
-                        buf[i]=right_block.first[i];
-                        // printf("the right block num: %d\n",buf[i]);
-                    }
-                    
-                    write(pipefd[1], &buf, sizeof(buf));
-                    printf("child numberOfRunningProcess is : %d\n",numOfRunningProcess);
-                    printf("child wrote right block\n");
-                    exit(EXIT_SUCCESS);
-                //    printf("right block is: %d",right_block.size);
-                }else {
-                    if(read(pipeNum[0], &numOfRunningProcessFromChild, sizeof(numOfRunningProcessFromChild))){
-                        numOfRunningProcess = numOfRunningProcess+numOfRunningProcessFromChild;
-                    }
-
-                    /* Parent reads from pipe */
-                    int buf[right_block.size];
-                    merge_sort_Two_processes(&left_block);/* Close unused write end */
-                    // for (int i = 0; i<left_block.size;i++){
-                    //     printf("the left block num: %d\n",left_block.first[i]);
-                    // }
-                    if(read(pipefd[0], &buf, sizeof(buf))){
-
-                    }
-                    
-                    printf("parent numberOfRunningProcess is : %d\n",numOfRunningProcess);
-                    printf("parent read right block\n");
-                    for (int i = 0; i<right_block.size;i++){
-                        right_block.first[i] = buf[i];
-                    }
-                //    for (int i = 0; i<right_block.size;i++){
-                //         printf("the right block sent to parent num: %d\n",buf[i]);
-                //     }
-                //    write(STDOUT_FILENO, "\n", 1);
-                //    close(pipefd[0]);
-                    merge(&left_block, &right_block);
-                    printf("merged\n"); 
-                    }
-            }else{
-                    merge_sort(&left_block);
-                    merge_sort(&right_block);
-                    merge(&left_block,&right_block);
+            if(*numOfRunningProcess < numOfCoreConfiged){
+                merge_sort_multiprocess(&right_block);
+            } else {
+                merge_sort(&right_block);
             }
-}
+
+            write(pipeNum[1],right_block.first, right_block.size*sizeof(int));
+            exit(EXIT_SUCCESS);
+            //    printf("right block is: %d",right_block.size);
+            }
+            
+            l_id = fork();
+            // printf("fork run\n");
+            pthread_mutex_lock(pmutex);
+            *numOfRunningProcess += 1 ;
+            pthread_mutex_unlock(pmutex);
+        
+            if (l_id == -1) {
+                perror("fork");
+                exit(EXIT_FAILURE);
+            } 
+            if (l_id == 0) {//child process
+
+                if(*numOfRunningProcess < numOfCoreConfiged){
+                    merge_sort_multiprocess(&left_block);
+                } else {
+                    merge_sort(&left_block);
+                }
+            write(pipefd[1], left_block.first, left_block.size*sizeof(int));
+            exit(EXIT_SUCCESS);
+            //    printf("right block is: %d",right_block.size);
+            }
+            close(pipefd[1]);
+	        close(pipeNum[1]);
+
+            read(pipefd[0], left_block.first,left_block.size*sizeof(int));
+	        read(pipeNum[0], right_block.first,right_block.size*sizeof(int));
+            pthread_mutex_lock(pmutex);
+            *numOfRunningProcess -= 2;
+            pthread_mutex_unlock(pmutex);
+            merge(&left_block, &right_block);
+    }
 }
 
 
@@ -198,10 +195,17 @@ int main(int argc, char *argv[]) {
     getrlimit (RLIMIT_STACK, &rl);
     printf("stack size was: %ld\n",rl.rlim_cur);
     /* Set the stack limit */
-    rl.rlim_cur = 2*1024L*1024L*1024L;
+    rl.rlim_cur = 900000000;
     setrlimit (RLIMIT_STACK, &rl);
     printf("stack size is now: %ld\n",rl.rlim_cur);
-
+    pthread_mutexattr_init(&attrmutex);
+    pthread_mutexattr_setpshared(&attrmutex, PTHREAD_PROCESS_SHARED);
+    
+    pmutex = (pthread_mutex_t *)mmap(NULL, sizeof(numOfRunningProcess),PROT_READ| PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,sysconf(_SC_PAGE_SIZE));
+    pthread_mutex_init(pmutex, &attrmutex);
+    
+    numOfRunningProcess = (int *)mmap(NULL, sizeof(numOfRunningProcess),PROT_READ| PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,sysconf(_SC_PAGE_SIZE));
+    *numOfRunningProcess = 1;
 	if (argc < 2) {
 		size = SIZE;
 	} else {
@@ -215,7 +219,7 @@ int main(int argc, char *argv[]) {
         data[i] = rand();
     }
     printf("starting---\n");
-    merge_sort_Two_processes(&start_block);
+    merge_sort_multiprocess(&start_block);
     printf("---ending\n");
     printf(is_sorted(data, size) ? "sorted\n" : "not sorted\n");
     exit(EXIT_SUCCESS);
