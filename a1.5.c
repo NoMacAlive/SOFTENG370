@@ -101,6 +101,7 @@ void* merge_sort(void *my_data) {
             pthread_spin_unlock(&spinlock);
             // printf("new thread created\n");
             pthread_create(&pth1, &attr, merge_sort,(void *)&left_block);
+            // printf("New thread added.\n");
             pthread_join(pth1,NULL);
             // printf("new thread destroyed\n");
             numOfThreadsRunning--;
@@ -118,6 +119,7 @@ void* merge_sort(void *my_data) {
             pthread_spin_unlock(&spinlock);
             // printf("new thread created\n");
             pthread_create(&pth2, &attr, merge_sort,(void *)&right_block);
+            // printf("New thread added.\n");
             pthread_join(pth2,NULL);
             // printf("new thread destroyed\n");
             pthread_spin_lock(&spinlock);

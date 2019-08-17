@@ -70,12 +70,12 @@ void* merge_sort(void *my_data) {
         pthread_t thread2_id;
         pthread_attr_t thread1_attr;
         pthread_attr_init(&thread1_attr);
-        pthread_attr_setstacksize(&thread1_attr, 32*1024*1024);
+        pthread_attr_setstacksize(&thread1_attr, 256*1024*1024);
         pthread_attr_t thread2_attr;
         pthread_attr_init(&thread2_attr);
-        pthread_attr_setstacksize(&thread2_attr, 32*1024*1024);
-        s1=pthread_create(&thread1_id, NULL, merge_sort,(void *)&left_block);
-        s2=pthread_create(&thread2_id, NULL, merge_sort,(void *)&right_block);
+        pthread_attr_setstacksize(&thread2_attr, 256*1024*1024);
+        s1=pthread_create(&thread1_id, &thread1_attr, merge_sort,(void *)&left_block);
+        s2=pthread_create(&thread2_id, &thread2_attr, merge_sort,(void *)&right_block);
         if(s1==0){
         pthread_join(thread1_id, NULL);
         }
@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
 	 /* Obtain the current limits. */
 	 getrlimit (RLIMIT_STACK, &rl);
 	 /* Set the stack limit */
-	 rl.rlim_cur = 1024*1024*1024;
+	 rl.rlim_cur = 2024*1024*1024;
 	 setrlimit (RLIMIT_STACK, &rl);
 
 

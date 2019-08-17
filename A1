@@ -1,32 +1,17 @@
 FirstStep
-1.
-real	0m20.390s
-user	0m20.217s
-sys	0m0.172s
+25.5s
 
-2.
-real	0m19.967s
-user	0m19.815s
-sys	0m0.152s
+Second (faster)
+14.8s
 
-3.
-real	0m20.035s
-user	0m19.846s
-sys	0m0.188s
+Third  (faster but use a lot of stack space)
+25.348s
 
+Fourth (have to 900000000 and 256MB for stack size)
+31.39s
 
-SecondStep
-1.
-real    0m11.170s
-user    0m20.411s
-sys     0m0.256s
+Fifth
+27.95s
 
-2.
-real    0m11.286s
-user    0m20.572s
-sys     0m0.200s
+Sixth
 
-3.
-real    0m11.228s
-user    0m20.607s
-sys     0m0.196s
