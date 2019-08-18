@@ -29,6 +29,7 @@ struct block {
     int *first;
 };
 
+int* shared_data;
 int numOfCoreConfiged;
 static int* numOfRunningProcess;
 pthread_mutex_t * pmutex = NULL;
@@ -102,22 +103,17 @@ bool is_sorted(int data[], int size) {
     return sorted;
 }
 void merge_sort_multiprocess(struct block *my_data){
-    int numOfRunningProcessFromChild = 0;
     if (my_data->size > 1) {
         struct block left_block;
         struct block right_block;
-        int s1,s2;
         left_block.size = my_data->size / 2;
         left_block.first = my_data->first;
         right_block.size = left_block.size + (my_data->size % 2);
         right_block.first = my_data->first + left_block.size;
         
-        int pipefd[2];
         pid_t l_id;
         pid_t r_id;
-        int pipeNum[2];
-        pipe(pipefd);
-        pipe(pipeNum);
+
         // printf("main numberOfRunningProcess is : %d\n",*numOfRunningProcess);
             r_id = fork();
             // printf("fork run\n");
@@ -128,17 +124,13 @@ void merge_sort_multiprocess(struct block *my_data){
             if (r_id == -1) {
                 perror("fork");
                 exit(EXIT_FAILURE);
-            } 
-            if (r_id == 0) {//child process
-
-            if(*numOfRunningProcess < numOfCoreConfiged){
-                merge_sort_multiprocess(&right_block);
-            } else {
-                merge_sort(&right_block);
-            }
-
-            write(pipeNum[1],right_block.first, right_block.size*sizeof(int));
-            exit(EXIT_SUCCESS);
+            }else if (r_id == 0) {//child process
+                if(*numOfRunningProcess < numOfCoreConfiged){
+                    merge_sort_multiprocess(&right_block);
+                } else {
+                    merge_sort(&right_block);
+                }
+                exit(EXIT_SUCCESS);
             //    printf("right block is: %d",right_block.size);
             }
             
@@ -151,23 +143,19 @@ void merge_sort_multiprocess(struct block *my_data){
             if (l_id == -1) {
                 perror("fork");
                 exit(EXIT_FAILURE);
-            } 
-            if (l_id == 0) {//child process
+            }else if (l_id == 0) {//child process
 
                 if(*numOfRunningProcess < numOfCoreConfiged){
                     merge_sort_multiprocess(&left_block);
                 } else {
                     merge_sort(&left_block);
                 }
-            write(pipefd[1], left_block.first, left_block.size*sizeof(int));
-            exit(EXIT_SUCCESS);
+                exit(EXIT_SUCCESS);
             //    printf("right block is: %d",right_block.size);
             }
-            close(pipefd[1]);
-	        close(pipeNum[1]);
+            waitpid(l_id, NULL, WUNTRACED);
+	        waitpid(r_id, NULL, WUNTRACED);
 
-            read(pipefd[0], left_block.first,left_block.size*sizeof(int));
-	        read(pipeNum[0], right_block.first,right_block.size*sizeof(int));
             pthread_mutex_lock(pmutex);
             *numOfRunningProcess -= 2;
             pthread_mutex_unlock(pmutex);
@@ -183,42 +171,49 @@ void merge_sort_multiprocess(struct block *my_data){
 
 
 int main(int argc, char *argv[]) {
+    printf("stack size was: \n");
 	long size;
 	struct rlimit rl;
     int name = _SC_NPROCESSORS_CONF;
     long numOfCores = sysconf(name);
     numOfCoreConfiged = (int)numOfCores;
+    printf("run here\n");
+    printf("stack size was: \n");
     /* Obtain the current limits. */
     getrlimit (RLIMIT_STACK, &rl);
     printf("stack size was: %ld\n",rl.rlim_cur);
     /* Set the stack limit */
-    rl.rlim_cur = 900000000;
+    rl.rlim_cur = 2*1024L*1024L*1024L;
+    // 900000000
     setrlimit (RLIMIT_STACK, &rl);
     printf("stack size is now: %ld\n",rl.rlim_cur);
     pthread_mutexattr_init(&attrmutex);
     pthread_mutexattr_setpshared(&attrmutex, PTHREAD_PROCESS_SHARED);
     
-    pmutex = (pthread_mutex_t *)mmap(NULL, sizeof(numOfRunningProcess),PROT_READ| PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,sysconf(_SC_PAGE_SIZE));
+    pmutex = (pthread_mutex_t *)mmap(NULL, sizeof(pmutex),PROT_READ| PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
     pthread_mutex_init(pmutex, &attrmutex);
     
-    numOfRunningProcess = (int *)mmap(NULL, sizeof(numOfRunningProcess),PROT_READ| PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,sysconf(_SC_PAGE_SIZE));
+    numOfRunningProcess = (int *)mmap(NULL, sizeof(int),PROT_READ| PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
     *numOfRunningProcess = 1;
-	if (argc < 2) {
+    if (argc < 2) {
 		size = SIZE;
 	} else {
 		size = atol(argv[1]);
 	}
+    shared_data = mmap(NULL, size*sizeof(int),PROT_READ| PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
+	
     struct block start_block;
     int data[size];
     start_block.size = size;
-    start_block.first = data;
+    start_block.first = shared_data;
     for (int i = 0; i < size; i++) {
-        data[i] = rand();
+        shared_data[i] = rand();
+        // printf("i = %d\n",shared_data[i]);
     }
     printf("starting---\n");
     merge_sort_multiprocess(&start_block);
     printf("---ending\n");
-    printf(is_sorted(data, size) ? "sorted\n" : "not sorted\n");
+    printf(is_sorted(shared_data, size) ? "sorted\n" : "not sorted\n");
     exit(EXIT_SUCCESS);
 }
 

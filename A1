@@ -8,16 +8,19 @@ Third  (faster but use a lot of stack space)
 25.348s
 
 Fourth (have to 900000000 and 256MB for stack size)
-31.39s
+27.024s
 
 Fifth
 27.95s
 
 Sixth
-
+15.64s
 
 Seventh
-
+14.89s
 
 Eighth
 14.38s
+
+Ninth
+14.707s
